@@ -10,10 +10,13 @@
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <syslog.h>
+#include <time.h> 
 
 #define MAX_CONNECTIONS 1000
 #define BUF_SIZE 65535
 #define QUEUE_SIZE 1000000
+#define LOG_MESSAGE_SIZE 1024
 
 static int listenfd;
 int *clients;
@@ -30,15 +33,12 @@ char *method, // "GET" or "POST"
     *payload; // for POST
 
 int payload_size;
+struct sockaddr_in clientaddr;
 
 void serve_forever(const char *PORT) {
-  struct sockaddr_in clientaddr;
   socklen_t addrlen;
 
   int slot = 0;
-
-  printf("Server started %shttp://127.0.0.1:%s%s\n", "\033[92m", PORT,
-         "\033[0m");
 
   // create shared memory for client slot array
   clients = mmap(NULL, sizeof(*clients) * MAX_CONNECTIONS,
@@ -52,6 +52,12 @@ void serve_forever(const char *PORT) {
 
   // Ignore SIGCHLD to avoid zombie threads
   signal(SIGCHLD, SIG_IGN);
+
+  // journal
+  openlog(NULL, LOG_PID, LOG_USER);
+  logMessage = malloc(LOG_MESSAGE_SIZE);
+  sprintf(logMessage, "Server started %shttp://127.0.0.1:%s%s\n", "\033[92m", PORT, "\033[0m");
+  syslog(LOG_INFO, "%s", logMessage);
 
   // ACCEPT connections
   while (1) {
@@ -81,7 +87,7 @@ void serve_forever(const char *PORT) {
 // start server
 void start_server(const char *port) {
   struct addrinfo hints, *res, *p;
-
+  
   // getaddrinfo for host
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_INET;
@@ -164,6 +170,7 @@ void respond(int slot) {
   buf = malloc(BUF_SIZE);
   rcvd = recv(clients[slot], buf, BUF_SIZE, 0);
 
+  syslog(LOG_INFO, "%s", buf);
   if (rcvd < 0) // receive error
     fprintf(stderr, ("recv() error\n"));
   else if (rcvd == 0) // receive socket closed
@@ -179,6 +186,16 @@ void respond(int slot) {
     uri_unescape(uri);
 
     fprintf(stderr, "\x1b[32m + [%s] %s\x1b[0m\n", method, uri);
+    
+    time_t rawtime;
+    struct tm * timeinfo;
+    char dateTime [80];
+    time (&rawtime);
+    timeinfo = localtime (&rawtime);
+    strftime(dateTime, 30, "%d/%b/%Y:%H:%M:%S %z", timeinfo);
+
+    char *clientIp = inet_ntoa(clientaddr.sin_addr);
+    sprintf(logMessage, "%s - - [%s] \"%s %s %s\"", clientIp, dateTime, method, uri, prot);
 
     qs = strchr(uri, '?');
 
@@ -220,9 +237,12 @@ void respond(int slot) {
 
     // call router
     route();
+  
 
-    // tidy up
+    sprintf(logMessage, "%s %ld", logMessage, ftell(stdout));
+    syslog(LOG_INFO, "%s", logMessage);
     fflush(stdout);
+    // tidy up
     shutdown(STDOUT_FILENO, SHUT_WR);
     close(STDOUT_FILENO);
   }
