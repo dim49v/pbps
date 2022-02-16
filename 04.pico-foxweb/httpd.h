@@ -9,10 +9,11 @@ extern char *method, // "GET" or "POST"
     *uri,            // "/index.html" things before '?'
     *qs,             // "a=1&b=2" things after  '?'
     *prot,           // "HTTP/1.1"
-    *payload;        // for POST
+    *payload,        // for POST
+    *logMessage,
+    *responseSize;
 
 extern int payload_size;
-char *logMessage;
 // Server control functions
 void serve_forever(const char *PORT);
 

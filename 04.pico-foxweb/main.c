@@ -8,6 +8,8 @@
 #define NOT_FOUND_HTML "/404.html"
 
 char * public_dir;
+char * logMessage;
+char * responseSize;
 
 int main(int c, char **v) {
   char *port = c <= 1 ? "8000" : v[1];
@@ -38,7 +40,7 @@ int read_file(const char *file_name) {
       fwrite(buf, 1, nread, stdout);
 
     err = ferror(file);
-    sprintf(logMessage, "%s %ld",logMessage, ftell(file));
+    sprintf(responseSize, "%ld", ftell(file));
     fclose(file);
   }
   return err;
