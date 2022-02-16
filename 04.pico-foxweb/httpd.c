@@ -170,7 +170,6 @@ void respond(int slot) {
   buf = malloc(BUF_SIZE);
   rcvd = recv(clients[slot], buf, BUF_SIZE, 0);
 
-  syslog(LOG_INFO, "%s", buf);
   if (rcvd < 0) // receive error
     fprintf(stderr, ("recv() error\n"));
   else if (rcvd == 0) // receive socket closed
@@ -185,7 +184,7 @@ void respond(int slot) {
 
     uri_unescape(uri);
 
-    fprintf(stderr, "\x1b[32m + [%s] %s\x1b[0m\n", method, uri);
+    // fprintf(stderr, "\x1b[32m + [%s] %s\x1b[0m\n", method, uri);
     
     time_t rawtime;
     struct tm * timeinfo;
@@ -220,7 +219,7 @@ void respond(int slot) {
       h->name = key;
       h->value = val;
       h++;
-      fprintf(stderr, "[H] %s: %s\n", key, val);
+      // fprintf(stderr, "[H] %s: %s\n", key, val);
       t = val + 1 + strlen(val);
       if (t[1] == '\r' && t[2] == '\n')
         break;
@@ -237,9 +236,8 @@ void respond(int slot) {
 
     // call router
     route();
-  
 
-    sprintf(logMessage, "%s %ld", logMessage, ftell(stdout));
+    // sprintf(logMessage, "%s %ld", logMessage, ftell(STDOUT_FILENO));
     syslog(LOG_INFO, "%s", logMessage);
     fflush(stdout);
     // tidy up
